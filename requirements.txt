@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+python-dotenv
+line-bot-sdk
+schedule
+pytz
+feedparser
+deep-translator
