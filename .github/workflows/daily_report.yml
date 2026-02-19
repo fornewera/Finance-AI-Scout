@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Grant write permission to the token
+    permissions:
+      contents: write
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -18,6 +22,11 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+
+    - name: Configure Git
+      run: |
+        git config --global user.name "Finance AI Scout Bot"
+        git config --global user.email "bot@finance-ai-scout.local"
 
     - name: Install dependencies
       run: |
@@ -31,4 +40,6 @@ jobs:
         LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
         LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_USERNAME: fornewera
+        GITHUB_REPO_NAME: Finance-AI-Scout
       run: python main.py --now

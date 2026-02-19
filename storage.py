@@ -59,7 +59,10 @@ def save_report(report_items):
             
         # Push (Always try if configured, to sync previous failures)
         if github_user and github_token:
-            remote_url = f"https://{github_user}:{github_token}@github.com/{github_user}/{repo_name}.git"
+            # Use authenticated URL for push
+            # In GitHub Actions, GITHUB_TOKEN is provided. 
+            # We construct the URL with the token for authentication.
+            remote_url = f"https://x-access-token:{github_token}@github.com/{github_user}/{repo_name}.git"
             
             # Check/Update URL
             remotes = subprocess.run(["git", "remote"], capture_output=True, text=True).stdout
