@@ -56,9 +56,12 @@ def run_scheduler():
             
         time.sleep(30) # Check every 30 seconds
 
+import sys
+
 if __name__ == "__main__":
-    # For testing immediately, uncomment:
-    # job()
-    
-    # Run scheduler
-    run_scheduler()
+    # If run with --now argument, execute job immediately and exit (for GitHub Actions)
+    if len(sys.argv) > 1 and sys.argv[1] == "--now":
+        job()
+    else:
+        # Otherwise run as a persistent scheduler
+        run_scheduler()
