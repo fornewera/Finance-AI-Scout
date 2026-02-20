@@ -99,7 +99,7 @@ def process_category(client, category_name: str, raw_items: list) -> list:
     """
     
     response = client.models.generate_content(
-        model='gemini-3.1-pro',
+        model='gemini-1.5-pro',
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -141,7 +141,7 @@ def summarize_sentiment(client, title: str, raw_sentiment: str) -> str:
     
     try:
         response = client.models.generate_content(
-            model='gemini-3.1-flash', # Use flash for quick sentiment summary
+            model='gemini-1.5-flash', # Use flash for quick sentiment summary
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.3,
