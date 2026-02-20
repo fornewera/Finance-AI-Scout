@@ -5,11 +5,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import pytz
+
 def save_report(report_items):
     """
     Saves the report to a markdown file and pushes to GitHub.
     """
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    taipei_tz = pytz.timezone('Asia/Taipei')
+    date_str = datetime.now(taipei_tz).strftime("%Y-%m-%d")
     filename = f"daily_reports/{date_str}.md"
     
     os.makedirs("daily_reports", exist_ok=True)

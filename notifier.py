@@ -4,6 +4,7 @@ from linebot.models import TextSendMessage
 from linebot.exceptions import LineBotApiError
 from dotenv import load_dotenv
 from datetime import datetime
+import pytz
 
 # Load environment variables
 load_dotenv()
@@ -24,7 +25,8 @@ def send_daily_digest(report_items):
 
     line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
     
-    header = f"📊 Finance-AI-Scout 每日財經快報 ({datetime.now().strftime('%Y-%m-%d')})\n\n"
+    taipei_tz = pytz.timezone('Asia/Taipei')
+    header = f"📊 Finance-AI-Scout 每日財經快報 ({datetime.now(taipei_tz).strftime('%Y-%m-%d')})\n\n"
     body = ""
     
     for i, item in enumerate(report_items[:15], 1):

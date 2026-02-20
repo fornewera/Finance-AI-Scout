@@ -7,8 +7,11 @@ from analyzer import analyze_news
 from notifier import send_daily_digest
 from storage import save_report
 
+
 def job():
-    print(f"Starting job at {datetime.now()}")
+    taipei_tz = pytz.timezone('Asia/Taipei')
+    now_taipei = datetime.now(taipei_tz)
+    print(f"Starting job at {now_taipei.strftime('%Y-%m-%d %H:%M:%S %Z')}")
     
     # 1. Scrape
     print("Fetching headlines...")
