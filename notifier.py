@@ -38,26 +38,10 @@ def send_native_pdf():
     github_user = os.getenv("GITHUB_USERNAME", "fornewera")
     github_repo = os.getenv("GITHUB_REPO_NAME", "Finance-AI-Scout")
     
-    # URL to the RAW PDF on GitHub
-    raw_pdf_url = f"https://raw.githubusercontent.com/{github_user}/{github_repo}/main/reports/{filename}"
-    
-    print(f"Polling GitHub Raw URL until it goes live (checking {raw_pdf_url})...")
-    # Wait for GitHub Raw cache to update (can take a short while after push)
-    max_retries = 30
-    for i in range(max_retries):
-        try:
-            resp = requests.head(raw_pdf_url)
-            if resp.status_code == 200:
-                print("GitHub Raw URL is ALIVE! Proceeding to send LINE message.")
-                break
-        except Exception:
-            pass
-        print(f"Waiting for GitHub Raw... ({i+1}/{max_retries})")
-        time.sleep(5)
-    else:
-        print("WARNING: GitHub Raw URL did not return 200 OK in time.")
+    # URL to the GitHub Preview page (works for Private Repos if logged in)
+    pdf_url = f"https://github.com/{github_user}/{github_repo}/blob/main/reports/{filename}"
 
-    message_text = f"📊 Finance & AI Scout 每日深度快報 ({today_str})\n\n你的全球財經與 AI 動態報告來囉！請直接點擊下方私密連結開啟 PDF 👇\n\n{raw_pdf_url}"
+    message_text = f"📊 Finance & AI Scout 每日深度快報 ({today_str})\n\n你的全球財經與 AI 動態報告來囉！請點擊連結，登入 GitHub 直接預覽 PDF 👇\n\n{pdf_url}"
 
     try:
         user_id = os.getenv("LINE_USER_ID")
