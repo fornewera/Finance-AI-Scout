@@ -38,10 +38,11 @@ def send_native_pdf():
     github_user = os.getenv("GITHUB_USERNAME", "fornewera")
     github_repo = os.getenv("GITHUB_REPO_NAME", "Finance-AI-Scout")
     
-    # URL to the GitHub Preview page (works for Private Repos if logged in)
-    pdf_url = f"https://github.com/{github_user}/{github_repo}/blob/main/reports/{filename}"
+    # Since the repository is Private, direct File/Blob URLs return 404 on mobile if not logged in.
+    # Provide a link to the repository page, and explicitly instruct the user to log in.
+    repo_url = f"https://github.com/{github_user}/{github_repo}/tree/main/reports"
 
-    message_text = f"📊 Finance & AI Scout 每日深度快報 ({today_str})\n\n你的全球財經與 AI 動態報告來囉！請點擊連結，登入 GitHub 直接預覽 PDF 👇\n\n{pdf_url}"
+    message_text = f"📊 Finance & AI Scout 每日深度快報 ({today_str})\n\n你的全球財經與 AI 動態報告來囉！\n\n🔒 由於您的專案是私密設定，請點擊下方連結，並確保在瀏覽器中 **【登入 GitHub】** 即可安全檢視：\n\n👉 {repo_url}"
 
     try:
         user_id = os.getenv("LINE_USER_ID")
