@@ -6,7 +6,6 @@ import time
 from scraper import fetch_all_relevant_news
 from analyzer import analyze_and_format_news
 from pdf_generator import generate_pdf_report
-from notifier import send_daily_digest_pdf
 
 def job():
     taipei_tz = pytz.timezone('Asia/Taipei')
