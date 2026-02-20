@@ -1,101 +1,157 @@
-import random
-from datetime import datetime
-from deep_translator import GoogleTranslator
+import os
+import json
+from google import genai
+from google.genai import types
+from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+from tavily import TavilyClient
 
-def translate_to_tc(text):
+load_dotenv()
+
+# Define the Pydantic schema for structured output
+class NewsItem(BaseModel):
+    title: str = Field(description="新聞標題 (Title)")
+    date_time: str = Field(description="新聞日期/時間 (Date/Time)")
+    source: str = Field(description="新聞來源媒體 (Source)")
+    summary: str = Field(description="新聞內容摘要 (Summary)：客觀的事件陳述")
+    social_sentiment: str = Field(description="社群評論摘要 (Social Sentiment)：X (Twitter)、Reddit 等社群對此事件的網民討論與情緒反應")
+    url: str = Field(description="新聞連結 (URL)")
+
+class CategoryReport(BaseModel):
+    items: list[NewsItem] = Field(description="List of exactly 10 most critical news items")
+
+class DailyReport(BaseModel):
+    financial_news: CategoryReport
+    ai_news: CategoryReport
+
+def get_social_sentiment(article_title: str) -> str:
     """
-    Translates text to Traditional Chinese using Google Translator.
+    Fetch social media sentiments for a specific news title using Tavily.
     """
+    api_key = os.getenv("TAVILY_API_KEY")
+    if not api_key:
+        return "無法獲取 API Key"
+        
+    client = TavilyClient(api_key=api_key)
+    query = f"Reddit AND Twitter (X) AND Hacker News reaction and comments to: {article_title}"
+    sentiment_sources = ["reddit.com", "twitter.com", "x.com", "news.ycombinator.com"]
+    
     try:
-        # 'zh-TW' is standard for Traditional Chinese
-        return GoogleTranslator(source='auto', target='zh-TW').translate(text)
+        # Search specifically in social media domains
+        response = client.search(
+            query=query,
+            search_depth="advanced",
+            include_domains=sentiment_sources,
+            max_results=3
+        )
+        results = response.get('results', [])
+        if not results:
+            return "目前無顯著社群討論"
+            
+        # Combine the context into a single string for Gemini to digest
+        context = "\n".join([f"- {r['content']}" for r in results])
+        return context
     except Exception as e:
-        print(f"Translation failed: {e}")
-        return text
+        print(f"Error fetching sentiment for {article_title}: {e}")
+        return "無法取得社群討論"
 
-def calculate_score(text):
+def analyze_and_format_news(finance_raw: list, ai_raw: list) -> dict:
     """
-     heuristic scoring based on keywords.
+    Uses Gemini 3.1 Pro to select the top 10 news, summarize them, and fetch social sentiments.
     """
-    text = text.lower()
-    scores = {
-        "policy": 0,
-        "systemic": 0,
-        "ai": 0,
-        "social": 0
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("GEMINI_API_KEY not found!")
+        return {}
+        
+    client = genai.Client(api_key=api_key)
+    
+    # We will process each category separately to maintain manageable context and schema
+    reports = {}
+    
+    print("Analyzing Financial News with Gemini...")
+    finance_report = process_category(client, "全球重要財經新聞", finance_raw)
+    
+    print("Analyzing AI News with Gemini...")
+    ai_report = process_category(client, "全球重要AI相關新聞", ai_raw)
+    
+    return {
+        "global_financial_news": finance_report,
+        "global_ai_news": ai_report
     }
-    
-    # Keyword Lists (Expanded for better coverage)
-    keywords = {
-        "policy": ["fed", "rate", "tax", "biden", "trump", "powell", "sec", "regulation", "law", "sanction", "trade", "china", "congress", "senate", "policy"],
-        "systemic": ["crash", "crisis", "debt", "bankrupt", "recession", "inflation", "collapse", "risk", "bubble", "volatility", "liquidity", "default", "market"],
-        "ai": ["ai", "artificial intelligence", "gpt", "gemini", "nvidia", "sam altman", "open-source", "neural", "robot", "compute", "algorithm", "llm", "tech"],
-        "social": ["viral", "trend", "breaking", "community", "reddit", "twitter", "rumor", "leak", "controversy", "scandal", "opinion"]
-    }
-    
-    # Calculate Component Scores
-    for word in keywords["policy"]:
-        if word in text: scores["policy"] += 15
-    scores["policy"] = min(scores["policy"], 30)
-    
-    for word in keywords["systemic"]:
-        if word in text: scores["systemic"] += 12
-    scores["systemic"] = min(scores["systemic"], 25)
-    
-    for word in keywords["ai"]:
-        if word in text: scores["ai"] += 12
-    scores["ai"] = min(scores["ai"], 25)
 
-    base_social = random.randint(5, 15)
-    for word in keywords["social"]:
-        if word in text: base_social += 5
-    scores["social"] = min(base_social, 20)
+def process_category(client, category_name: str, raw_items: list) -> list:
+    # First, let's ask Gemini to pick the top 10 and format the basic info (without sentiment)
+    # We pass the raw Tavily results to Gemini
+    context_str = json.dumps(raw_items, indent=2, ensure_ascii=False)
     
-    total_score = scores["policy"] + scores["systemic"] + scores["ai"] + scores["social"]
-    return total_score, scores
-
-def analyze_news(news_items):
+    prompt = f"""
+    你是一位華爾街頂級的分析師。請從以下提供的 Tavily 搜尋結果中，挑選出最重要、最具全球市場/產業影響力的 10 則【{category_name}】。
+    
+    篩選標準：
+    - 財經新聞：只關注宏觀經濟、大盤、重大地緣政治、重量級巨頭動態。排除農場預測、中小型股。
+    - AI 新聞：關注模型突破、算力基礎建設、重大併購、實質應用落地。排除小工具更新、農場教學文。
+    - 必須是過去 24 小時內發生的時效性事件。
+    - 嚴格遵守提供的 JSON Schema 輸出。對於 social_sentiment 欄位，請先填入「待補」。
+    
+    原始新聞資料：
+    {context_str}
     """
-    Analyzes news items using a keyword-based heuristic model.
-    Translates relevant fields to Traditional Chinese.
-    """
-    if not news_items:
+    
+    response = client.models.generate_content(
+        model='gemini-3.1-pro',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=CategoryReport,
+            temperature=0.2, # Low temp for factual picking
+        ),
+    )
+    
+    try:
+        report_data = json.loads(response.text)
+        items = report_data.get("items", [])
+        
+        # Now we enhance each item with social sentiment
+        for item in items:
+            title = item.get("title", "")
+            print(f"Fetching sentiment for: {title}")
+            raw_sentiment = get_social_sentiment(title)
+            
+            # Use Gemini flash (cheaper/faster) to summarize the raw sentiment
+            sentiment_summary = summarize_sentiment(client, title, raw_sentiment)
+            item["social_sentiment"] = sentiment_summary
+            
+        return items
+    except Exception as e:
+        print(f"Error parsing Gemini response or fetching sentiment: {e}")
         return []
 
-    print(f"Analyzing {len(news_items)} items with Heuristic Scorer & Translation...")
+def summarize_sentiment(client, title: str, raw_sentiment: str) -> str:
+    if raw_sentiment in ["目前無顯著社群討論", "無法取得社群討論", "無法獲取 API Key"]:
+         return raw_sentiment
+         
+    prompt = f"""
+    新聞事件：「{title}」
+    以下是從 X (Twitter)、Reddit、Hacker News 爬取到的原始網民討論片段：
+    {raw_sentiment}
     
-    analyzed_items = []
+    請用一句話 (繁體中文，約 30 字內) 總結社群的整體情緒反應與主要爭議點 (例如看多、看空、或某個特定擔憂)。
+    """
     
-    for item in news_items:
-        # Combine title and description for analysis
-        full_text = f"{item['title']} {item.get('description', '')}"
-        score, components = calculate_score(full_text)
-        
-        # Generate Social Comment Summary (Heuristic)
-        social_comment = "社群討論熱度高。" if components['social'] > 15 else "社群關注度中等。"
-        if components['ai'] > 10: social_comment += " 科技圈與投資人高度聚焦 AI 發展。"
-        if components['policy'] > 20: social_comment += " 市場密切關注政策變動風險。"
-        if components['systemic'] > 15: social_comment += " 投資人擔憂潛在金融風險。"
-        if score > 70: social_comment += " 此議題極具影響力，建議密切追蹤。"
-        
-        # Translate Title and Summary
-        # Note: Summary uses 'description' from RSS
-        tc_title = translate_to_tc(item['title'])
-        tc_summary = translate_to_tc(item.get('description', item['title'])) # Fallback to title if no desc
-
-        item['score'] = score
-        item['tc_title'] = tc_title
-        item['tc_summary'] = tc_summary
-        item['social_comment'] = social_comment
-        
-        # Formatting Date (Simple string or parse)
-        # RSS 'publishedAt' is usually a string.
-        
-        analyzed_items.append(item)
-
-    # Sort by score descending and take top 15
-    analyzed_items.sort(key=lambda x: x['score'], reverse=True)
-    return analyzed_items[:15]
+    try:
+        response = client.models.generate_content(
+            model='gemini-3.1-flash', # Use flash for quick sentiment summary
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+            ),
+        )
+        return response.text.strip()
+    except Exception as e:
+        print(f"Error in sentiment summary: {e}")
+        return "社群情緒總結失敗"
 
 if __name__ == "__main__":
+    # For testing logic
     pass

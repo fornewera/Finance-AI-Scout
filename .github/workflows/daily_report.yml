@@ -23,6 +23,11 @@ jobs:
       with:
         python-version: '3.9'
 
+    - name: Install System Dependencies for WeasyPrint
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libpango1.0-dev
+
     - name: Configure Git
       run: |
         git config --global user.name "Finance AI Scout Bot"
@@ -35,11 +40,31 @@ jobs:
 
     - name: Run main script
       env:
-        # 如果腳本需要環境變數，可以在 GitHub Secrets 中設定
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        # 新增的 API Keys，請記得去 GitHub Secrets 中設定！
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
         LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_USERNAME: fornewera
         GITHUB_REPO_NAME: Finance-AI-Scout
       run: python main.py --now
+
+    - name: Commit and Push generated PDF
+      run: |
+        git add reports/
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No new reports generated."
+        else
+          git commit -m "Auto-generate daily report PDF [skip ci]"
+          git push
+        fi
+
+    - name: Send Native LINE Notification
+      env:
+        LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+        LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        GITHUB_USERNAME: fornewera
+        GITHUB_REPO_NAME: Finance-AI-Scout
+      run: python notifier.py

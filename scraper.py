@@ -1,70 +1,78 @@
-import requests
-import feedparser
-from datetime import datetime
-from bs4 import BeautifulSoup
+import os
+from tavily import TavilyClient
+from dotenv import load_dotenv
 
-# RSS Feeds or Main Pages for target sources
-# Note: Bloomberg and FT are hard to scrape due to paywalls/anti-bot. 
-# We use RSS where available or fallback to a known feed URL.
-SOURCES = {
-    "Reuters": "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best", 
-    "CNN": "http://rss.cnn.com/rss/money_latest.rss",
-    "Wall Street Journal": "https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml",
-    "Barron's": "https://www.barrons.com/feed/rss",  # Generic Barron's feed
-    "Financial Times": "https://www.ft.com/?format=rss", # Often just titles
-    "Bloomberg": "https://feeds.bloomberg.com/business/news.xml" # Unofficial/Often changes or redirects. 
-    # Alternative: Use query params matching source for cleaner results if parsing main page.
-}
+load_dotenv()
 
-def fetch_headlines():
+# We define the whitelisted sources for priority search
+FINANCE_SOURCES = [
+    "bloomberg.com", "reuters.com", "wsj.com", 
+    "ft.com", "cnbc.com", "barrons.com"
+]
+
+AI_SOURCES = [
+    "theverge.com", "techcrunch.com", "wired.com", "theinformation.com", 
+    "technologyreview.com", "openai.com", "blog.google", "anthropic.com"
+]
+
+def fetch_category_news(category: str, query: str, include_domains: list) -> list:
     """
-    Fetches headlines from specific RSS feeds or pages.
-    Returns a list of news items.
+    Fetch news from Tavily with a strict 24-hour time range and advanced depth.
     """
-    all_articles = []
+    api_key = os.getenv("TAVILY_API_KEY")
+    if not api_key:
+        print("TAVILY_API_KEY not found in environment!")
+        return []
+        
+    client = TavilyClient(api_key=api_key)
     
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    print(f"Fetching {category} news using Tavily...")
+    try:
+        # Time range 'd' strictly searches for the last 24 hours (if the API supports "day" or "d")
+        # According to Tavily docs, time_range="day", "week", "month", "year", "d"
+        response = client.search(
+            query=query,
+            search_depth="advanced",
+            topic="news",
+            days=1, # Also possible based on SDK version
+            include_domains=include_domains,
+            max_results=15  # Fetch slightly more, so AI can filter down to the top 10
+        )
+        
+        results = response.get('results', [])
+        print(f"Fetched {len(results)} items for {category}.")
+        return results
+    except Exception as e:
+        print(f"Error fetching {category}: {e}")
+        return []
+
+def fetch_all_relevant_news():
+    """
+    Fetch both financial and AI news, returning a dictionary of the raw search results.
+    """
+    # Use a highly descriptive prompt for the search engine to understand our needs.
+    finance_query = "latest major global macroeconomic news, central bank policies like fed rates, major stock market index movements S&P 500, geopolitical global impact, or top tier non-AI corporate earnings and shifts."
+    finance_news = fetch_category_news(
+        category="Global Financial News",
+        query=finance_query,
+        include_domains=FINANCE_SOURCES
+    )
+    
+    ai_query = "latest breakthrough AI models releases, AI infrastructure NVIDIA AMD, major AI startup investments, tech giants AI mergers, high impact AI applications or major AI regulation news."
+    ai_news = fetch_category_news(
+        category="Global AI News",
+        query=ai_query,
+        include_domains=AI_SOURCES
+    )
+    
+    return {
+        "finance": finance_news,
+        "ai": ai_news
     }
 
-    print("Fetching news from RSS feeds...")
-
-    for source, url in SOURCES.items():
-        try:
-            # Try parsing as RSS first
-            feed = feedparser.parse(url)
-            
-            if feed.entries:
-                print(f"Fetched {len(feed.entries)} items from {source}")
-                for entry in feed.entries[:10]: # Top 10
-                    # Standardize fields
-                    title = entry.get('title', 'No Title')
-                    link = entry.get('link', '')
-                    summary = entry.get('summary', '') or entry.get('description', '')
-                    pub_date = entry.get('published', '') or entry.get('updated', str(datetime.now()))
-                    
-                    # Basic cleaning
-                    soup = BeautifulSoup(summary, "html.parser")
-                    clean_summary = soup.get_text()[:200]
-                    
-                    all_articles.append({
-                        "source": source,
-                        "title": title,
-                        "url": link,
-                        "publishedAt": pub_date,
-                        "description": clean_summary
-                    })
-            else:
-                # Fallback: simple requests + BS4 if RSS fails (Not implemented for all due to complexity, ignoring for now)
-                print(f"No RSS entries found for {source} at {url}")
-                
-        except Exception as e:
-            print(f"Error fetching {source}: {e}")
-
-    print(f"Total articles fetched: {len(all_articles)}")
-    return all_articles
-
 if __name__ == "__main__":
-    headlines = fetch_headlines()
-    for h in headlines:
-        print(f"[{h['source']}] {h['title']}")
+    news = fetch_all_relevant_news()
+    for cat, items in news.items():
+        print(f"\n--- {cat.upper()} ({len(items)}) ---")
+        for item in items[:2]:
+            print(f"- {item.get('title')} ({item.get('url')})")

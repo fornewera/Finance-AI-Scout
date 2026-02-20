@@ -4,5 +4,8 @@ python-dotenv
 line-bot-sdk
 schedule
 pytz
-feedparser
-deep-translator
+tavily-python
+google-genai
+weasyprint
+jinja2
+pydantic
