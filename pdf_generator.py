@@ -104,9 +104,9 @@ HTML_TEMPLATE = """
     {% for item in financial_news %}
     <div class="article">
         <a class="article-title" href="{{ item.url }}" target="_blank">{{ item.title }}</a>
-        <div class="article-meta">{{ item.source }} | {{ item.date_time }}</div>
+        <div class="article-meta">{{ item.source }} | {{ item.date_time }} | <a href="{{ item.url }}" target="_blank" style="color: #0066cc;">閱讀原文 &rarr;</a></div>
         <div class="article-summary">{{ item.summary }}</div>
-        {% if item.social_sentiment and item.social_sentiment != '目前無顯著社群討論' %}
+        {% if item.social_sentiment and item.social_sentiment not in ['目前無顯著社群討論', '待補'] %}
         <div class="social-sentiment">
             <strong>社群風向：</strong>{{ item.social_sentiment }}
         </div>
@@ -118,9 +118,9 @@ HTML_TEMPLATE = """
     {% for item in ai_news %}
     <div class="article">
         <a class="article-title" href="{{ item.url }}" target="_blank">{{ item.title }}</a>
-        <div class="article-meta">{{ item.source }} | {{ item.date_time }}</div>
+        <div class="article-meta">{{ item.source }} | {{ item.date_time }} | <a href="{{ item.url }}" target="_blank" style="color: #0066cc;">閱讀原文 &rarr;</a></div>
         <div class="article-summary">{{ item.summary }}</div>
-        {% if item.social_sentiment and item.social_sentiment != '目前無顯著社群討論' %}
+        {% if item.social_sentiment and item.social_sentiment not in ['目前無顯著社群討論', '待補'] %}
         <div class="social-sentiment">
             <strong>社群風向：</strong>{{ item.social_sentiment }}
         </div>

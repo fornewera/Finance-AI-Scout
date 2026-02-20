@@ -92,7 +92,9 @@ def process_category(client, category_name: str, raw_items: list) -> list:
     - 財經新聞：只關注宏觀經濟、大盤、重大地緣政治、重量級巨頭動態。排除農場預測、中小型股。
     - AI 新聞：關注模型突破、算力基礎建設、重大併購、實質應用落地。排除小工具更新、農場教學文。
     - 必須是過去 24 小時內發生的時效性事件。
-    - 嚴格遵守提供的 JSON Schema 輸出。對於 social_sentiment 欄位，請先填入「待補」。
+    - 嚴格遵守提供的 JSON Schema 輸出。
+    - 【極度重要】：所有欄位內容 (title, source, summary) 請務必翻譯並使用「繁體中文 (zh-TW)」輸出！
+    - 對於 social_sentiment 欄位，請先一律填入「待補」。
     
     原始新聞資料：
     {context_str}
@@ -136,7 +138,9 @@ def summarize_sentiment(client, title: str, raw_sentiment: str) -> str:
     以下是從 X (Twitter)、Reddit、Hacker News 爬取到的原始網民討論片段：
     {raw_sentiment}
     
-    請用一句話 (繁體中文，約 30 字內) 總結社群的整體情緒反應與主要爭議點 (例如看多、看空、或某個特定擔憂)。
+    任務指令：
+    請閱讀這些短碎的社群評論，並用一句話 (繁體中文，約 30 字內) 總結社群的整體情緒反應與主要爭議點 (例如看多、看空、或某個特定擔憂)。
+    如果提供的評論內容完全無關、雜亂無章或沒有實質評論，請直接回覆：「目前無顯著社群討論」即可，不要硬把新聞標題或公司名稱當作結論。
     """
     
     try:
