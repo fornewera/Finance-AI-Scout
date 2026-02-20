@@ -2,8 +2,8 @@ name: Daily Financial Report
 
 on:
   schedule:
-    # 每天 UTC 00:00 (台北時間 08:00) 執行
-    - cron: '0 0 * * *'
+    # 避開全世界都在整點執行的尖峰時刻，改為 UTC 23:45 (台北時間 07:45) 執行，以減少延遲
+    - cron: '45 23 * * *'
   workflow_dispatch:  # 允許手動觸發
 
 jobs:
